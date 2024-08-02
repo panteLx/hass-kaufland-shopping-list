@@ -41,8 +41,8 @@ def send_notification(message, title="Kaufland Shopping List Error"):
     if response.status_code == 200:
         print(f"Notification sent: {message}")
     else:
-        print("Error sending notification:" +
-              f"{response.status_code} - {response.text}")
+        print(f"""Error sending notification: {
+              response.status_code} - {response.text}""")
 
 
 def fetch_json_response(url, headers):
@@ -93,8 +93,8 @@ def modify_item(action, item_name):
         response.raise_for_status()
         print(f"Item '{item_name}' successfully {action.replace('_', ' ')}.")
     except requests.RequestException as e:
-        error_message = f"Error {action.replace('_', ' ')} item '{
-            item_name}': {str(e)}"
+        error_message = f"""Error {action.replace('_', ' ')} item '{
+            item_name}': {str(e)}"""
         print(error_message)
         send_notification(error_message)
 
