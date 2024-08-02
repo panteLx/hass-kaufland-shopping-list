@@ -1,6 +1,7 @@
 # Home Assistant Kaufland Shoppinglist
 
 Create .env file with the following contents
+
 ```
 ### Home Assistant configuration
 
@@ -25,7 +26,7 @@ Optional: Create Home Assistant user for the token
 
 Insert Home Assistant token and todo name into the .env
 
-Install requests, websocket, dotenv via pip
+Install requests, websocket, dotenv via `pip install -r requirements.txt`
 
 Run py import.py
 
