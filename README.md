@@ -13,7 +13,7 @@ HOME_ASSISTANT_TODO_NAME=todo.xxx
 
 ### Kaufland configuration
 
-KAUFLAND_URL=https://sync.kaufland.de/sync_klapp/_changes?include_docs=true&feed=longpoll
+KAUFLAND_URL=https://sync.kaufland.de/sync_klapp/_changes?include_docs=true&feed=longpoll&heartbeat=xxxx&since=xxxx
 KAUFLAND_COOKIE=
 KAUFLAND_SLEEP=600 # in seconds
 ```
