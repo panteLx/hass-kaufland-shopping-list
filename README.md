@@ -10,6 +10,7 @@ HOME_ASSISTANT_ADD=http://homeassistant.local:8123/api/services/todo/add_item
 HOME_ASSISTANT_REMOVE=http://homeassistant.local:8123/api/services/todo/remove_item
 HOME_ASSISTANT_TOKEN=
 HOME_ASSISTANT_TODO_NAME=todo.xxx
+HOME_ASSISTANT_NOTIFY_URL=http://homeassistant.local:8123/api/services/notify/mobile_app_iphone_xxx
 
 ### Kaufland configuration
 
@@ -26,8 +27,10 @@ Optional: Create Home Assistant user for the token
 
 Insert Home Assistant token and todo name into the .env
 
+Insert your notify device into the end of the HOME_ASSISTANT_NOTIFY_URL variable
+
 Install requests, websocket, dotenv via `pip install -r requirements.txt`
 
 Run py import.py
 
-### Script will check if your Kaufland shopping list has been updated, delete the previous Home Assistant shopping list and push the new items to it.
+### Script will check if your Kaufland shopping list has been updated, delete the previous Home Assistant shopping list and push the new items to it. It will notfiy you via Home Assistant and terminal in case of an error.

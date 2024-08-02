@@ -1,9 +1,9 @@
 import os
-from dotenv import load_dotenv
-from websocket import create_connection
-import requests
 import json
 import time
+import requests
+from dotenv import load_dotenv
+from websocket import create_connection
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,7 +14,8 @@ home_assistant = {
     'add': os.getenv('HOME_ASSISTANT_ADD'),
     'remove': os.getenv('HOME_ASSISTANT_REMOVE'),
     'token': os.getenv('HOME_ASSISTANT_TOKEN'),
-    'todo_name': os.getenv('HOME_ASSISTANT_TODO_NAME')
+    'todo_name': os.getenv('HOME_ASSISTANT_TODO_NAME'),
+    'notify_url': os.getenv('HOME_ASSISTANT_NOTIFY_URL')
 }
 
 # Kaufland configuration
@@ -25,135 +26,144 @@ kaufland = {
 }
 
 
-def get_todo_list():
-    # Create a WebSocket connection to Home Assistant
-    ws = create_connection(home_assistant['get'])
-
-    # Authenticate with Home Assistant
-    message = {
-        "type": "auth",
-        "access_token": home_assistant['token']
-    }
-    ws.send(json.dumps(message))
-    result = ws.recv()
-    result = ws.recv()
-
-    # Request the current to-do list
-    message = {
-        "type": "call_service",
-        "domain": "todo",
-        "service": "get_items",
-        "target": {"entity_id": home_assistant["todo_name"]},
-        "id": 1,
-        "return_response": True
-    }
-    ws.send(json.dumps(message))
-    result = json.loads(ws.recv())
-    ws.close()
-    return result
-
-
-def remove_item(item_name):
-    # Remove an item from the to-do list via Home Assistant API
-    headers = {
+def get_headers():
+    # Returns headers needed for API requests, including the Authorization token
+    return {
         'Authorization': f'Bearer {home_assistant["token"]}',
         'Content-Type': 'application/json'
     }
-    payload = {
-        'entity_id': home_assistant['todo_name'],
-        'item': item_name
-    }
-    response = requests.post(
-        home_assistant['remove'], headers=headers, json=payload)
+
+
+def send_notification(message, title="Kaufland Shopping List Error"):
+    # Sends a notification message to the Home Assistant notify URL
+    response = requests.post(home_assistant['notify_url'], headers=get_headers(), json={
+                             'message': message, 'title': title})
     if response.status_code == 200:
-        print(f"Item '{item_name}' successfully removed.")
+        print(f"Notification sent: {message}")
     else:
-        print(f"Error removing item: {response.status_code} - {response.text}")
+        print(f"Error sending notification: {
+              response.status_code} - {response.text}")
 
 
-def add_item(item_text):
-    # Add a new item to the to-do list via Home Assistant API
-    headers = {
-        'Authorization': f'Bearer {home_assistant["token"]}',
-        'Content-Type': 'application/json'
-    }
-    payload = {
-        'entity_id': home_assistant['todo_name'],
-        'item': item_text
-    }
-    response = requests.post(
-        home_assistant['add'], headers=headers, json=payload)
-    if response.status_code == 200:
-        print(f"Item '{item_text}' successfully added.")
-    else:
-        print(f"Error adding item: {response.status_code} - {response.text}")
-
-
-def fetch_external_data():
-    # Fetch external data from Kaufland
-    headers = {
-        'Cookie': f'{kaufland["cookie"]}',
-        'Content-Type': 'application/json'
-    }
-    response = requests.get(kaufland['url'], headers=headers)
-    if response.status_code == 200:
+def fetch_json_response(url, headers):
+    # Fetches JSON data from a URL and handles potential errors
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
         return response.json()
-    else:
-        print(f"Error fetching external data: {response.status_code}")
+    except requests.RequestException as e:
+        error_message = f"Error fetching data: {str(e)}"
+        print(error_message)
+        send_notification(error_message)
         return {}
 
 
+def get_todo_list():
+    # Retrieves the to-do list from Home Assistant via WebSocket
+    try:
+        ws = create_connection(home_assistant['get'])
+        ws.send(json.dumps(
+            {"type": "auth", "access_token": home_assistant['token']}))
+        ws.recv()  # Read the auth response
+        ws.recv()  # Read the auth response
+        ws.send(json.dumps({
+            "type": "call_service",
+            "domain": "todo",
+            "service": "get_items",
+            "target": {"entity_id": home_assistant["todo_name"]},
+            "id": 1,
+            "return_response": True
+        }))
+        result = json.loads(ws.recv())
+        ws.close()
+        return result
+    except Exception as e:
+        error_message = f"Error getting to-do list: {str(e)}"
+        print(error_message)
+        send_notification(error_message)
+        return {}
+
+
+def modify_item(action, item_name):
+    # Modifies an item in the to-do list (either add or remove)
+    try:
+        url = home_assistant[action]
+        payload = {'entity_id': home_assistant['todo_name'], 'item': item_name}
+        response = requests.post(url, headers=get_headers(), json=payload)
+        response.raise_for_status()
+        print(f"Item '{item_name}' successfully {action.replace('_', ' ')}.")
+    except requests.RequestException as e:
+        error_message = f"Error {action.replace('_', ' ')} item '{
+            item_name}': {str(e)}"
+        print(error_message)
+        send_notification(error_message)
+
+
+def fetch_external_data():
+    # Fetches external data from Kaufland
+    headers = {'Cookie': f'{kaufland["cookie"]}',
+               'Content-Type': 'application/json'}
+    return fetch_json_response(kaufland['url'], headers)
+
+
 def main():
-    # Fetch external data and current to-do list
+    # Main function to handle the overall process
+    # Fetch external data from Kaufland
     external_data = fetch_external_data()
     if not external_data:
         print("No external data fetched.")
-        return
+        return  # Exit if no external data is available
 
+    # Retrieve the current to-do list from Home Assistant
     todo_list = get_todo_list()
     if not todo_list:
         print("No to-do list fetched.")
-        return
+        return  # Exit if the to-do list could not be retrieved
 
-    # Debugging output
     print(f"Todo List: {todo_list}")
 
-    # Remove all existing items from the to-do list
-    items = todo_list.get('result', {}).get(
-        'response', {}).get(home_assistant["todo_name"], {}).get('items', [])
+    # Extract items from the to-do list
+    items = todo_list.get('result', {}).get('response', {}).get(
+        home_assistant["todo_name"], {}).get('items', [])
+
+    # Check if there are items to remove
     if not items:
         print("No items found to remove.")
+
+    # Process each item in the to-do list to remove it
     for item in items:
+        # Get the unique identifier of the item
         uid = item.get('uid', 'Unknown UID')
         print(f"Attempting to remove item: {uid}")
-        remove_item(uid)
+        modify_item('remove', uid)  # Remove the item from the to-do list
 
-    # Add new items to the to-do list, skipping deleted ones
+    # Process each item in the external data to add it to the to-do list
     for item in external_data.get('results', []):
-        # Check if the item is marked as deleted
+        # Check if the item has been marked as deleted
         if item.get('deleted', False):
             doc = item.get('doc', {})
             title = doc.get('title', 'No title')
             print(f"Skipping deleted item: {title}")
-            continue
+            continue  # Skip this item and move to the next
 
-        # Extract item details safely
         doc = item.get('doc', {})
-        title = doc.get('title', 'No title')
-        subtitle = doc.get('subtitle', '')
+        title = doc.get('title', 'No title')  # Get the title of the item
+        subtitle = doc.get('subtitle', '')  # Get the subtitle of the item
+        # Get the number of items
         number_of_items = doc.get('numberOfItems', 0)
 
+        # Format the item text for adding to the to-do list
         item_text = f"{title} {subtitle} ({number_of_items}x)"
         print(f"Attempting to add item: {item_text}")
-        add_item(item_text)
+        modify_item('add', item_text)  # Add the item to the to-do list
 
 
 if __name__ == "__main__":
     while True:
-        main()
-        # Calculate wait time in minutes
-        wait_time_minutes = int(kaufland['sleep']) / 60
-        # Print a message indicating the wait time
-        print(f"Waiting for {wait_time_minutes} minutes.")
-        # Sleep for x seconds (where x is the sleep time specified in the .env file)
-        time.sleep(int(kaufland['sleep']))
+        main()  # Call the main function to execute the process
+        # Get the sleep duration from configuration
+        wait_time_seconds = int(kaufland['sleep'])
+        # Print the wait time
+        print(f"Waiting for {wait_time_seconds / 60:.2f} minutes.")
+        # Pause execution for the specified duration
+        time.sleep(wait_time_seconds)
