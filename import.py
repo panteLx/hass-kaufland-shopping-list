@@ -154,7 +154,6 @@ if __name__ == "__main__":
         # Calculate wait time in minutes
         wait_time_minutes = int(kaufland['sleep']) / 60
         # Print a message indicating the wait time
-        print(f"Waiting for {wait_time_minutes} 
-              minutes before the next check...")
+        print(f"Waiting for {wait_time_minutes} minutes.")
         # Sleep for x seconds (where x is the sleep time specified in the .env file)
         time.sleep(int(kaufland['sleep']))
