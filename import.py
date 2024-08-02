@@ -41,8 +41,8 @@ def send_notification(message, title="Kaufland Shopping List Error"):
     if response.status_code == 200:
         print(f"Notification sent: {message}")
     else:
-        print(f"Error sending notification: {
-              response.status_code} - {response.text}")
+        print("Error sending notification:" +
+              f"{response.status_code} - {response.text}")
 
 
 def fetch_json_response(url, headers):
